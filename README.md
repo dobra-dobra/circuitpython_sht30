@@ -1,6 +1,6 @@
 #SHT30 Sensor driver for Circuitpython
 
-Micropython driver for [SHT30 Shield](https://www.wemos.cc/product/sht30-shield.html) for [Wemos D1 Mini (and PRO)](https://www.wemos.cc/product/d1-mini-pro.html).
+Circuitpython driver for [SHT30 Shield](https://www.wemos.cc/product/sht30-shield.html) for [Wemos D1 Mini (and PRO)](https://www.wemos.cc/product/d1-mini-pro.html).
 
 The driver has been tested on Wemos D1 mini with Circuitpython 2.0.0
 

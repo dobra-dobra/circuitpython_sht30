@@ -1,4 +1,5 @@
-from machine import I2C, Pin
+import board
+from busio import I2C
 import time
 
 __version__ = '0.2.1'
@@ -36,23 +37,27 @@ class SHT30():
     ENABLE_HEATER_CMD = b'\x30\x6D'
     DISABLE_HEATER_CMD = b'\x30\x66'
 
-    def __init__(self, scl_pin=5, sda_pin=4, delta_temp = 0, delta_hum = 0, i2c_address=DEFAULT_I2C_ADDRESS):
-        self.i2c = I2C(scl=Pin(scl_pin), sda=Pin(sda_pin))
+    def __init__(self, scl_pin = board.GPIO5, sda_pin = board.GPIO4, delta_temp = 0, delta_hum = 0, i2c_address = DEFAULT_I2C_ADDRESS):
+        self.i2c = I2C(scl = scl_pin, sda = sda_pin)
         self.i2c_addr = i2c_address
         self.set_delta(delta_temp, delta_hum)
-        time.sleep_ms(50)
+        time.sleep(0.05)
     
-    def init(self, scl_pin=5, sda_pin=4):
+    def init(self, scl_pin = board.GPIO5, sda_pin = board.GPIO4):
         """
         Init the I2C bus using the new pin values
         """
-        self.i2c.init(scl=Pin(scl_pin), sda=Pin(sda_pin))
+        self.i2c.init(scl = scl_pin, sda = sda_pin)
+        
     
     def is_present(self):
         """
         Return true if the sensor is correctly conneced, False otherwise
-        """
+        """        
+        while not self.i2c.try_lock():
+			pass
         return self.i2c_addr in self.i2c.scan()
+        self.i2c.unlock()
     
     def set_delta(self, delta_temp = 0, delta_hum = 0):
         """
@@ -76,20 +81,22 @@ class SHT30():
         crc_to_check = data[-1]
         return crc_to_check == crc
     
-    def send_cmd(self, cmd_request, response_size=6, read_delay_ms=100):
+    def send_cmd(self, cmd_request, response_size = 6, read_delay = 0.1):
         """
         Send a command to the sensor and read (optionally) the response
         The responsed data is validated by CRC
         """
         try:
-            self.i2c.start(); 
+            while not self.i2c.try_lock():
+			    pass
             self.i2c.writeto(self.i2c_addr, cmd_request); 
             if not response_size:
-                self.i2c.stop(); 	
+                self.i2c.unlock() 	
                 return
-            time.sleep_ms(read_delay_ms)
-            data = self.i2c.readfrom(self.i2c_addr, response_size) 
-            self.i2c.stop(); 
+            time.sleep(read_delay)
+            data = bytearray(response_size)
+            self.i2c.readfrom_into(self.i2c_addr, data) 
+            self.i2c.unlock()
             for i in range(response_size//3):
                 if not self._check_crc(data[i*3:(i+1)*3]): # pos 2 and 5 are CRC
                     raise SHT30Error(SHT30Error.CRC_ERROR)
@@ -118,7 +125,7 @@ class SHT30():
         Get the sensor status register. 
         It returns a int value or the bytearray(3) if raw==True
         """
-        data = self.send_cmd(SHT30.STATUS_CMD, 3, read_delay_ms=20); 
+        data = self.send_cmd(SHT30.STATUS_CMD, 3, read_delay = 0.02); 
 
         if raw:
             return data
@@ -185,4 +192,3 @@ class SHT30Error(Exception):
             return "CRC error"
         else:
             return "Unknown error"
-
